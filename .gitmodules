@@ -1,9 +1,6 @@
 [submodule "mavlink/include/mavlink/v1.0"]
 	path = mavlink/include/mavlink/v1.0
 	url = git://github.com/mavlink/c_library.git
-[submodule "NuttX"]
-	path = NuttX
-	url = git://github.com/PX4/NuttX.git
 [submodule "src/modules/uavcan/libuavcan"]
 	path = src/modules/uavcan/libuavcan
 	url = git://github.com/UAVCAN/libuavcan.git
@@ -28,3 +25,11 @@
 [submodule "src/lib/matrix"]
 	path = src/lib/matrix
 	url = https://github.com/PX4/Matrix.git
+[submodule "NuttX/apps"]
+	path = NuttX/apps
+	url = https://github.com/rohiniku/NuttX-apps.git
+	branch = rohi_stm32f4discovery
+[submodule "NuttX/nuttx"]
+	path = NuttX/nuttx
+	url = https://github.com/rohiniku/NuttX-nuttx.git
+	branch = rohi_stm32f4discovery
