@@ -77,7 +77,8 @@ endif
 # in that directory with the target upload.
 
 #  explicity set default build target
-all: px4fmu-v2_default
+#DELDEL all: px4fmu-v2_default
+all: nuttx_px4-stm32f4discovery_default
 
 # Parsing
 # --------------------------------------------------------------------
@@ -135,6 +136,9 @@ px4fmu-v2_simple:
 
 px4fmu-v2_lpe:
 	$(call cmake-build,nuttx_px4fmu-v2_lpe)
+
+nuttx_px4-stm32f4discovery_default:
+	$(call cmake-build,$@)
 
 nuttx_sim_simple:
 	$(call cmake-build,$@)
