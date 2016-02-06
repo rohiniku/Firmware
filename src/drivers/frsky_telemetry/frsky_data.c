@@ -45,7 +45,9 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
+#ifdef CONFIG_ARCH_MATH_H
 #include <arch/math.h>
+#endif
 #include <geo/geo.h>
 
 #include <uORB/topics/battery_status.h>
