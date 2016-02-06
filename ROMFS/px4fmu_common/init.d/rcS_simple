@@ -5,7 +5,6 @@
 #  NOTE: COMMENT LINES ARE REMOVED BEFORE STORED IN ROMFS.
 #
 
-param set RC_MAP_FAILSAFE 999 # why is it need?
 #
 # Start CDC/ACM serial driver
 #
