@@ -51,8 +51,8 @@
 #include <sys/ioctl.h>
 #include <sys/stat.h>
 
-#include <nuttx/spi.h>
-#include <nuttx/mtd.h>
+#include <nuttx/spi/spi.h>
+#include <nuttx/mtd/mtd.h>
 #include <nuttx/fs/nxffs.h>
 #include <nuttx/fs/ioctl.h>
 
@@ -76,8 +76,10 @@ int mtd_main(int argc, char *argv[])
 
 #else
 
-#ifdef CONFIG_MTD_RAMTRON
+#if defined(CONFIG_MTD_RAMTRON)
 static void	ramtron_attach(void);
+#elif defined(CONFIG_MTD_W25)
+static void     w25_attach(void);
 #else
 
 #ifndef PX4_I2C_BUS_ONBOARD
@@ -94,6 +96,7 @@ static void	mtd_rwtest(char *partition_names[], unsigned n_partitions);
 static void	mtd_print_info(void);
 static int	mtd_get_geometry(unsigned long *blocksize, unsigned long *erasesize, unsigned long *neraseblocks,
 				 unsigned *blkpererase, unsigned *nblocks, unsigned *partsize, unsigned n_partitions);
+static void     mtd_chiperase(void);
 
 static bool attached = false;
 static bool started = false;
@@ -163,16 +166,21 @@ int mtd_main(int argc, char *argv[])
 				mtd_erase(partition_names_default, n_partitions_default);
 			}
 		}
+
+		if (!strcmp(argv[1], "chiperase")) {
+			mtd_chiperase();
+		}
 	}
 
-	errx(1, "expected a command, try 'start', 'erase', 'status', 'readtest', 'rwtest' or 'test'");
+	errx(1, "expected a command, try 'start', 'erase', 'status', 'readtest', 'rwtest', 'test' or 'chiperase'");
 }
 
 struct mtd_dev_s *ramtron_initialize(FAR struct spi_dev_s *dev);
+struct mtd_dev_s *w25_initialize(FAR struct spi_dev_s *dev);
 struct mtd_dev_s *mtd_partition(FAR struct mtd_dev_s *mtd,
 				off_t firstblock, off_t nblocks);
 
-#ifdef CONFIG_MTD_RAMTRON
+#if defined(CONFIG_MTD_RAMTRON)
 static void
 ramtron_attach(void)
 {
@@ -215,6 +223,38 @@ ramtron_attach(void)
 		// that but setting the bug speed does fail all the time. Which was then exiting and the board would
 		// not run correctly. So changed to warnx.
 		warnx("failed to set bus speed");
+	}
+
+	attached = true;
+}
+#elif defined(CONFIG_MTD_W25)
+static void
+w25_attach(void)
+{
+	/* initialize the right spi */
+	struct spi_dev_s *spi = up_spiinitialize(PX4_SPI_BUS_W25);
+
+	if (spi == NULL) {
+		errx(1, "failed to locate spi bus");
+	}
+
+	/* start the W25 driver, attempt 5 times */
+	for (int i = 0; i < 5; i++) {
+		mtd_dev = w25_initialize(spi);
+
+		if (mtd_dev) {
+			/* abort on first valid result */
+			if (i > 0) {
+				warnx("warning: mtd needed %d attempts to attach", i + 1);
+			}
+
+			break;
+		}
+	}
+
+	/* if last attempt is still unsuccessful, abort */
+	if (mtd_dev == NULL) {
+		errx(1, "failed to initialize mtd driver");
 	}
 
 	attached = true;
@@ -266,8 +306,10 @@ mtd_start(char *partition_names[], unsigned n_partitions)
 	}
 
 	if (!attached) {
-#ifdef CONFIG_MTD_RAMTRON
+#if defined(CONFIG_MTD_RAMTRON)
 		ramtron_attach();
+#elif defined(CONFIG_MTD_W25)
+		w25_attach();
 #else
 		at24xxx_attach();
 #endif
@@ -536,6 +578,21 @@ mtd_rwtest(char *partition_names[], unsigned n_partitions)
 
 	printf("rwtest OK\n");
 	exit(0);
+}
+
+static void
+mtd_chiperase(void)
+{
+  if (mtd_dev) {
+    int ret = mtd_dev->ioctl(mtd_dev, MTDIOC_BULKERASE, 0);
+    if (ret != OK) {
+      errx(1, "Failed to chip erase");
+    }
+  } else {
+    errx(1, "Failed to chip erase. Did not started.");
+  }
+  printf("chiperase OK\n");
+  exit(0);
 }
 
 #endif
