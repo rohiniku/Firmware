@@ -33,7 +33,7 @@
 
 set(MODULE_CFLAGS )
 if(${OS} STREQUAL "nuttx")
-	list(APPEND MODULE_CFLAGS -Wframe-larger-than=4000)
+	list(APPEND MODULE_CFLAGS -Wframe-larger-than=4200)
 endif()
 
 px4_add_module(
