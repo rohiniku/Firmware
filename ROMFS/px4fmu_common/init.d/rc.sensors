@@ -66,7 +66,9 @@ then
 		then
 		fi
 	fi
-else
+fi
+if ver hwcmp PX4FMU_V1
+then
 	# FMUv1
 	if mpu6000 start
 	then
@@ -97,18 +99,25 @@ else
 		fi
 	fi
 fi
-
-if meas_airspeed start
+if ver hwcmp PX4_STM32F4DISCOVERY
 then
-else
-	if ets_airspeed start
+	# internal MPU9250 is rotated 180 degrees yaw
+	if mpu9250 start
 	then
-	else
-		if ets_airspeed start -b 1
-		then
-		fi
 	fi
 fi
+
+#DELDEL if meas_airspeed start
+#DELDEL then
+#DELDEL else
+#DELDEL 	if ets_airspeed start
+#DELDEL 	then
+#DELDEL 	else
+#DELDEL 		if ets_airspeed start -b 1
+#DELDEL 		then
+#DELDEL 		fi
+#DELDEL 	fi
+#DELDEL fi
 
 # Wait 20 ms for sensors (because we need to wait for the HRT and work queue callbacks to fire)
 usleep 20000

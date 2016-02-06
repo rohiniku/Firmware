@@ -896,6 +896,7 @@ Sensors::parameters_update()
 
 	_board_rotation = board_rotation_offset * _board_rotation;
 
+#if 0
 	/* update barometer qnh setting */
 	param_get(_parameter_handles.baro_qnh, &(_parameters.baro_qnh));
 	int	barofd;
@@ -916,7 +917,7 @@ Sensors::parameters_update()
 
 		px4_close(barofd);
 	}
-
+#endif
 	return OK;
 }
 
@@ -1013,6 +1014,7 @@ Sensors::mag_init()
 int
 Sensors::baro_init()
 {
+#if 0
 	int	fd;
 
 	fd = px4_open(BARO0_DEVICE_PATH, 0);
@@ -1026,6 +1028,7 @@ Sensors::baro_init()
 	px4_ioctl(fd, SENSORIOCSPOLLRATE, 150);
 
 	px4_close(fd);
+#endif
 
 	return OK;
 }
@@ -1591,6 +1594,7 @@ Sensors::rc_parameter_map_poll(bool forced)
 
 		}
 
+#if 0
 		warnx("rc to parameter map updated");
 
 		for (int i = 0; i < rc_parameter_map_s::RC_PARAM_MAP_NCHAN; i++) {
@@ -1603,6 +1607,7 @@ Sensors::rc_parameter_map_poll(bool forced)
 			      (double)_rc_parameter_map.value_max[i]
 			     );
 		}
+#endif
 	}
 }
 

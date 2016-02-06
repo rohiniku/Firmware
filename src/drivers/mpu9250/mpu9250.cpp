@@ -73,6 +73,10 @@
 #include <drivers/device/integrator.h>
 #include <drivers/drv_accel.h>
 #include <drivers/drv_gyro.h>
+#define MPU9250_MAG_ENABLE
+#ifdef MPU9250_MAG_ENABLE
+#include <drivers/drv_mag.h>
+#endif
 #include <mathlib/math/filter/LowPassFilter2p.hpp>
 #include <lib/conversion/rotation.h>
 
@@ -81,8 +85,14 @@
 
 #define MPU_DEVICE_PATH_ACCEL		"/dev/mpu9250_accel"
 #define MPU_DEVICE_PATH_GYRO		"/dev/mpu9250_gyro"
+#ifdef MPU9250_MAG_ENABLE
+#define MPU_DEVICE_PATH_MAG		"/dev/mpu9250_mag"
+#endif
 #define MPU_DEVICE_PATH_ACCEL_EXT	"/dev/mpu9250_accel_ext"
 #define MPU_DEVICE_PATH_GYRO_EXT	"/dev/mpu9250_gyro_ext"
+#ifdef MPU9250_MAG_ENABLE
+#define MPU_DEVICE_PATH_MAG_EXT		"/dev/mpu9250_mag_ext"
+#endif
 
 // MPU 9250 registers
 #define MPUREG_WHOAMI			0x75
@@ -172,6 +182,46 @@
 #define BIT_RAW_RDY_EN			0x01
 #define BIT_INT_ANYRD_2CLEAR		0x10
 
+#ifdef MPU9250_MAG_ENABLE
+// for MPU : I2C Speed 400kHz
+#define BIT_I2C_MST_CLK                 0x0D
+// for MPU : Enable AUX
+#define BIT_I2C_MST_EN                  0x20
+// for MPU : I2C slave addres of AK8963(write)
+#define BIT_I2C_ID_0_W                  0x0C
+// for MPU : I2C slave addres of AK8963(read)
+#define BIT_I2C_ID_0_R                  0x8C
+// for MPU : I2C enable and set transfer length
+#define BIT_I2C_SLV0_EN_1               0x81
+#define BIT_I2C_SLV0_EN_3               0x83
+#define BIT_I2C_SLV0_EN_10              0x8A
+// for AK8963_CNTL1
+#define AK8963_BIT_16BIT_PDOWN          0x10
+#define AK8963_BIT_16BIT_CONT1          0x12
+#define AK8963_BIT_16BIT_CONT2          0x16
+#define AK8963_BIT_16BIT_FUSEROM        0x1F
+// for AK8963_CNTL2
+#define AK8963_BIT_CNTL2_SRST           0x01
+// AK8963 register address
+#define AK8963_WIA                      0x00
+#define AK8963_INFO                     0x01
+#define AK8963_ST1                      0x02
+#define AK8963_HXL                      0x03
+#define AK8963_HXH                      0x04
+#define AK8963_HYL                      0x05
+#define AK8963_HYH                      0x06
+#define AK8963_HZL                      0x07
+#define AK8963_HZH                      0x08
+#define AK8963_ST2                      0x09
+#define AK8963_CNTL1                    0x0A
+#define AK8963_CNTL2                    0x0B
+#define AK8963_ASAX                     0x10
+#define AK8963_ASAY                     0x11
+#define AK8963_ASAZ                     0x12
+// AK8963 register value of WIA
+#define AK8963_WHOAMI			0x48
+#endif
+
 #define MPU_WHOAMI_9250			0x71
 
 #define MPU9250_ACCEL_DEFAULT_RATE	1000
@@ -183,6 +233,10 @@
 #define MPU9250_GYRO_DEFAULT_DRIVER_FILTER_FREQ 30
 
 #define MPU9250_DEFAULT_ONCHIP_FILTER_FREQ	41
+
+#ifdef MPU9250_MAG_ENABLE
+#define MPU9250_MAG_DEFAULT_RATE	100
+#endif
 
 #define MPU9250_ONE_G					9.80665f
 
@@ -210,10 +264,18 @@
 
 class MPU9250_gyro;
 
+#ifdef MPU9250_MAG_ENABLE
+class MPU9250_mag;
+#endif
+
 class MPU9250 : public device::SPI
 {
 public:
+#ifdef MPU9250_MAG_ENABLE
+	MPU9250(int bus, const char *path_accel, const char *path_gyro, const char *path_mag, spi_dev_e device, enum Rotation rotation);
+#else
 	MPU9250(int bus, const char *path_accel, const char *path_gyro, spi_dev_e device, enum Rotation rotation);
+#endif
 	virtual ~MPU9250();
 
 	virtual int		init();
@@ -239,8 +301,18 @@ protected:
 	virtual ssize_t		gyro_read(struct file *filp, char *buffer, size_t buflen);
 	virtual int		gyro_ioctl(struct file *filp, int cmd, unsigned long arg);
 
+#ifdef MPU9250_MAG_ENABLE
+	friend class MPU9250_mag;
+
+	virtual ssize_t		mag_read(struct file *filp, char *buffer, size_t buflen);
+	virtual int		mag_ioctl(struct file *filp, int cmd, unsigned long arg);
+#endif
+
 private:
 	MPU9250_gyro		*_gyro;
+#ifdef MPU9250_MAG_ENABLE
+	MPU9250_mag		*_mag;
+#endif
 	uint8_t			_whoami;	/** whoami result */
 
 	struct hrt_call		_call;
@@ -261,11 +333,26 @@ private:
 	float			_gyro_range_scale;
 	float			_gyro_range_rad_s;
 
+#ifdef MPU9250_MAG_ENABLE
+	ringbuffer::RingBuffer	*_mag_reports;
+
+	struct mag_scale	_mag_scale;
+	float			_mag_range_scale;
+	float 			_mag_range_ga;
+	uint8_t 		_mag_asax;
+	uint8_t 		_mag_asay;
+	uint8_t 		_mag_asaz;
+#endif
+
 	unsigned		_dlpf_freq;
 
 	unsigned		_sample_rate;
 	perf_counter_t		_accel_reads;
 	perf_counter_t		_gyro_reads;
+#ifdef MPU9250_MAG_ENABLE
+	unsigned		_mag_sample_rate;
+	perf_counter_t		_mag_reads;
+#endif
 	perf_counter_t		_sample_perf;
 	perf_counter_t		_bad_transfers;
 	perf_counter_t		_bad_registers;
@@ -305,6 +392,11 @@ private:
 	// keep last accel reading for duplicate detection
 	uint16_t		_last_accel[3];
 	bool			_got_duplicate;
+
+#ifdef MPU9250_MAG_ENABLE
+        // keep last notified time for mag sensor report.
+        hrt_abstime             _last_notified_time_mag;
+#endif
 
 	/**
 	 * Start automatic measurement.
@@ -450,6 +542,15 @@ private:
 		uint8_t		gyro_x[2];
 		uint8_t		gyro_y[2];
 		uint8_t		gyro_z[2];
+#ifdef MPU9250_MAG_ENABLE
+		uint8_t		wia;
+		uint8_t		info;
+		uint8_t		st1;
+		uint8_t		hx[2];
+		uint8_t		hy[2];
+		uint8_t		hz[2];
+		uint8_t		st2;
+#endif
 	};
 #pragma pack(pop)
 };
@@ -503,12 +604,51 @@ private:
 	MPU9250_gyro operator=(const MPU9250_gyro &);
 };
 
+#ifdef MPU9250_MAG_ENABLE
+/**
+ * Helper class implementing the mag driver node.
+ */
+class MPU9250_mag : public device::CDev
+{
+public:
+	MPU9250_mag(MPU9250 *parent, const char *path);
+	~MPU9250_mag();
+
+	virtual ssize_t		read(struct file *filp, char *buffer, size_t buflen);
+	virtual int		ioctl(struct file *filp, int cmd, unsigned long arg);
+
+	virtual int		init();
+
+protected:
+	friend class MPU9250;
+
+	void			parent_poll_notify();
+
+private:
+	MPU9250			*_parent;
+	orb_advert_t		_mag_topic;
+	int			_mag_orb_class_instance;
+	int			_mag_class_instance;
+
+	/* do not allow to copy this class due to pointer data members */
+	MPU9250_mag(const MPU9250_mag &);
+	MPU9250_mag operator=(const MPU9250_mag &);
+};
+#endif
+
 /** driver 'main' command */
 extern "C" { __EXPORT int mpu9250_main(int argc, char *argv[]); }
 
+#ifdef MPU9250_MAG_ENABLE
+MPU9250::MPU9250(int bus, const char *path_accel, const char *path_gyro, const char *path_mag, spi_dev_e device, enum Rotation rotation) :
+#else
 MPU9250::MPU9250(int bus, const char *path_accel, const char *path_gyro, spi_dev_e device, enum Rotation rotation) :
+#endif
 	SPI("MPU9250", path_accel, bus, device, SPIDEV_MODE3, MPU9250_LOW_BUS_SPEED),
 	_gyro(new MPU9250_gyro(this, path_gyro)),
+#ifdef MPU9250_MAG_ENABLE
+        _mag(new MPU9250_mag(this, path_mag)),
+#endif
 	_whoami(0),
 	_call{},
 	_call_interval(0),
@@ -523,10 +663,23 @@ MPU9250::MPU9250(int bus, const char *path_accel, const char *path_gyro, spi_dev
 	_gyro_scale{},
 	_gyro_range_scale(0.0f),
 	_gyro_range_rad_s(0.0f),
+#ifdef MPU9250_MAG_ENABLE
+        _mag_reports{nullptr},
+        _mag_scale{},
+        _mag_range_scale(0.0015f),
+        _mag_range_ga(49.0f),
+        _mag_asax(0),
+        _mag_asay(0),
+        _mag_asaz(0),
+#endif
 	_dlpf_freq(MPU9250_DEFAULT_ONCHIP_FILTER_FREQ),
 	_sample_rate(1000),
 	_accel_reads(perf_alloc(PC_COUNT, "mpu9250_accel_read")),
 	_gyro_reads(perf_alloc(PC_COUNT, "mpu9250_gyro_read")),
+#ifdef MPU9250_MAG_ENABLE
+        _mag_sample_rate(MPU9250_MAG_DEFAULT_RATE),
+        _mag_reads(perf_alloc(PC_COUNT, "mpu9250_mag_read")),
+#endif
 	_sample_perf(perf_alloc(PC_ELAPSED, "mpu9250_read")),
 	_bad_transfers(perf_alloc(PC_COUNT, "mpu9250_bad_transfers")),
 	_bad_registers(perf_alloc(PC_COUNT, "mpu9250_bad_registers")),
@@ -550,6 +703,10 @@ MPU9250::MPU9250(int bus, const char *path_accel, const char *path_gyro, spi_dev
 	_last_temperature(0),
 	_last_accel{},
 	_got_duplicate(false)
+#ifdef MPU9250_MAG_ENABLE
+        ,
+        _last_notified_time_mag(0)
+#endif
 {
 	// disable debug() calls
 	_debug_enabled = false;
@@ -559,6 +716,12 @@ MPU9250::MPU9250(int bus, const char *path_accel, const char *path_gyro, spi_dev
 	/* Prime _gyro with parents devid. */
 	_gyro->_device_id.devid = _device_id.devid;
 	_gyro->_device_id.devid_s.devtype = DRV_GYR_DEVTYPE_MPU9250;
+
+#ifdef MPU9250_MAG_ENABLE
+	/* Prime _mag with parents devid. */
+	_mag->_device_id.devid = _device_id.devid;
+	_mag->_device_id.devid_s.devtype = DRV_MAG_DEVTYPE_MPU9250;
+#endif
 
 	// default accel scale factors
 	_accel_scale.x_offset = 0;
@@ -576,6 +739,16 @@ MPU9250::MPU9250(int bus, const char *path_accel, const char *path_gyro, spi_dev
 	_gyro_scale.z_offset = 0;
 	_gyro_scale.z_scale  = 1.0f;
 
+#ifdef MPU9250_MAG_ENABLE
+	// default mag scale factors
+	_mag_scale.x_offset = 0;
+	_mag_scale.x_scale  = 1.0f;
+	_mag_scale.y_offset = 0;
+	_mag_scale.y_scale  = 1.0f;
+	_mag_scale.z_offset = 0;
+	_mag_scale.z_scale  = 1.0f;
+#endif
+
 	memset(&_call, 0, sizeof(_call));
 }
 
@@ -587,6 +760,11 @@ MPU9250::~MPU9250()
 	/* delete the gyro subdriver */
 	delete _gyro;
 
+#ifdef MPU9250_MAG_ENABLE
+	/* delete the mag subdriver */
+	delete _mag;
+#endif
+
 	/* free any existing reports */
 	if (_accel_reports != nullptr) {
 		delete _accel_reports;
@@ -595,6 +773,12 @@ MPU9250::~MPU9250()
 	if (_gyro_reports != nullptr) {
 		delete _gyro_reports;
 	}
+
+#ifdef MPU9250_MAG_ENABLE
+	if (_mag_reports != nullptr) {
+		delete _mag_reports;
+	}
+#endif
 
 	if (_accel_class_instance != -1) {
 		unregister_class_devname(ACCEL_BASE_DEVICE_PATH, _accel_class_instance);
@@ -638,6 +822,14 @@ MPU9250::init()
 		goto out;
 	}
 
+#ifdef MPU9250_MAG_ENABLE
+	_mag_reports = new ringbuffer::RingBuffer(2, sizeof(mag_report));
+
+	if (_mag_reports == nullptr) {
+		goto out;
+	}
+#endif
+
 	if (reset() != OK) {
 		goto out;
 	}
@@ -657,6 +849,14 @@ MPU9250::init()
 	_gyro_scale.z_offset = 0;
 	_gyro_scale.z_scale  = 1.0f;
 
+#ifdef MPU9250_MAG_ENABLE
+	_mag_scale.x_offset = 0;
+	_mag_scale.x_scale = 1.0f;
+	_mag_scale.y_offset = 0;
+	_mag_scale.y_scale = 1.0f;
+	_mag_scale.z_offset = 0;
+	_mag_scale.z_scale = 1.0f;
+#endif
 
 	/* do CDev init for the gyro device node, keep it optional */
 	ret = _gyro->init();
@@ -666,6 +866,17 @@ MPU9250::init()
 		DEVICE_DEBUG("gyro init failed");
 		return ret;
 	}
+
+#ifdef MPU9250_MAG_ENABLE
+	/* do CDev init for the mag device node, keep it optional */
+	ret = _mag->init();
+
+	/* if probe/setup failed, bail now */
+	if (ret != OK) {
+		DEVICE_DEBUG("mag init failed");
+		return ret;
+	}
+#endif
 
 	_accel_class_instance = register_class_devname(ACCEL_BASE_DEVICE_PATH);
 
@@ -694,6 +905,19 @@ MPU9250::init()
 	if (_gyro->_gyro_topic == nullptr) {
 		warnx("ADVERT FAIL");
 	}
+
+#ifdef MPU9250_MAG_ENABLE
+	/* advertise sensor topic, measure manually to initialize valid report */
+	struct mag_report mrp;
+	_mag_reports->get(&mrp);
+
+	_mag->_mag_topic = orb_advertise_multi(ORB_ID(sensor_mag), &mrp,
+			     &_mag->_mag_orb_class_instance, (is_external()) ? ORB_PRIO_MAX - 1 : ORB_PRIO_HIGH - 1);
+
+	if (_mag->_mag_topic == nullptr) {
+		warnx("ADVERT FAIL");
+	}
+#endif
 
 out:
 	return ret;
@@ -742,6 +966,76 @@ int MPU9250::reset()
 	write_checked_reg(MPUREG_INT_PIN_CFG, BIT_INT_ANYRD_2CLEAR); // INT: Clear on any read
 	usleep(1000);
 
+#ifdef MPU9250_MAG_ENABLE
+        // AK8963
+        write_checked_reg(MPUREG_USER_CTRL, BIT_I2C_MST_EN);
+	usleep(1000);
+        write_reg(MPUREG_I2C_MST_CTRL, BIT_I2C_MST_CLK);
+	usleep(1000);
+
+        // soft reset
+        write_reg(MPUREG_I2C_SLV0_ADDR, BIT_I2C_ID_0_W);
+	usleep(1000);
+        write_reg(MPUREG_I2C_SLV0_REG, AK8963_CNTL2);
+	usleep(1000);
+        write_reg(MPUREG_I2C_SLV0_D0, AK8963_BIT_CNTL2_SRST);
+	usleep(1000);
+        write_reg(MPUREG_I2C_SLV0_CTRL, BIT_I2C_SLV0_EN_1);
+	up_udelay(10000);
+
+        // change to FUSE ROM MODE
+        write_reg(MPUREG_I2C_SLV0_REG, AK8963_CNTL1);
+	usleep(1000);
+        write_reg(MPUREG_I2C_SLV0_D0, AK8963_BIT_16BIT_FUSEROM);
+	usleep(1000);
+        write_reg(MPUREG_I2C_SLV0_CTRL, BIT_I2C_SLV0_EN_1);
+	usleep(1000);
+        // read setting ASAX, ASAY, ASAZ (total 3 bytes)
+        write_reg(MPUREG_I2C_SLV0_ADDR, BIT_I2C_ID_0_R);
+	usleep(1000);
+        write_reg(MPUREG_I2C_SLV0_REG, AK8963_ASAX);
+	usleep(1000);
+        write_reg(MPUREG_I2C_SLV0_CTRL, BIT_I2C_SLV0_EN_3);
+	usleep(1000);
+        // read
+        _mag_asax = read_reg(MPUREG_EXT_SENS_DATA_00, MPU9250_HIGH_BUS_SPEED);
+        _mag_asay = read_reg(MPUREG_EXT_SENS_DATA_00 + 1, MPU9250_HIGH_BUS_SPEED);
+        _mag_asaz = read_reg(MPUREG_EXT_SENS_DATA_00 + 2, MPU9250_HIGH_BUS_SPEED);
+#if 0
+        // exchange mag axis to same as acc/gyro axis. x <= y / y <= x / z <= -z
+        uint8_t tmp_u8;
+        tmp_u8 = _mag_asax;
+        _mag_asax = _mag_asay;
+        _mag_asay = tmp_u8;
+        //        _mag_asaz = (uint8_t)(-1 * (_mag_asaz - 128));
+#endif
+
+        // change to POWER DOWN MODE
+        write_reg(MPUREG_I2C_SLV0_ADDR, BIT_I2C_ID_0_W);
+	usleep(1000);
+        write_reg(MPUREG_I2C_SLV0_REG, AK8963_CNTL1);
+	usleep(1000);
+        write_reg(MPUREG_I2C_SLV0_D0, AK8963_BIT_16BIT_PDOWN);
+	usleep(1000);
+        write_reg(MPUREG_I2C_SLV0_CTRL, BIT_I2C_SLV0_EN_1);
+	usleep(1000);
+
+        // change to CONTINUOUS 16BIT MODE
+        write_reg(MPUREG_I2C_SLV0_REG, AK8963_CNTL1);
+	usleep(1000);
+        write_reg(MPUREG_I2C_SLV0_D0, AK8963_BIT_16BIT_CONT2);
+	usleep(1000);
+        write_reg(MPUREG_I2C_SLV0_CTRL, BIT_I2C_SLV0_EN_1);
+	usleep(1000);
+        // read setting WIA to ST2 (total 10 bytes)
+        write_reg(MPUREG_I2C_SLV0_ADDR, BIT_I2C_ID_0_R);
+	usleep(1000);
+        write_reg(MPUREG_I2C_SLV0_REG, AK8963_WIA);
+	usleep(1000);
+        write_reg(MPUREG_I2C_SLV0_CTRL, BIT_I2C_SLV0_EN_10);
+	usleep(10000);
+#endif
+        
 	uint8_t retries = 10;
 
 	while (retries--) {
@@ -998,8 +1292,6 @@ MPU9250::gyro_self_test()
 	return 0;
 }
 
-
-
 /*
   deliberately trigger an error in the sensor to trigger recovery
  */
@@ -1054,6 +1346,48 @@ MPU9250::gyro_read(struct file *filp, char *buffer, size_t buflen)
 	/* return the number of bytes transferred */
 	return (transferred * sizeof(gyro_report));
 }
+
+#ifdef MPU9250_MAG_ENABLE
+ssize_t
+MPU9250::mag_read(struct file *filp, char *buffer, size_t buflen)
+{
+	unsigned count = buflen / sizeof(mag_report);
+
+	/* buffer must be large enough */
+	if (count < 1) {
+		return -ENOSPC;
+	}
+
+	/* if automatic measurement is not enabled, get a fresh measurement into the buffer */
+	if (_call_interval == 0) {
+		_mag_reports->flush();
+		measure();
+	}
+
+	/* if no data, error (we could block here) */
+	if (_mag_reports->empty()) {
+		return -EAGAIN;
+	}
+
+	perf_count(_mag_reads);
+
+	/* copy reports out of our buffer to the caller */
+	mag_report *mrp = reinterpret_cast<mag_report *>(buffer);
+	int transferred = 0;
+
+	while (count--) {
+		if (!_mag_reports->get(mrp)) {
+			break;
+		}
+
+		transferred++;
+		mrp++;
+	}
+
+	/* return the number of bytes transferred */
+	return (transferred * sizeof(mag_report));
+}
+#endif
 
 int
 MPU9250::ioctl(struct file *filp, int cmd, unsigned long arg)
@@ -1320,6 +1654,131 @@ MPU9250::gyro_ioctl(struct file *filp, int cmd, unsigned long arg)
 	}
 }
 
+#ifdef MPU9250_MAG_ENABLE
+int
+MPU9250::mag_ioctl(struct file *filp, int cmd, unsigned long arg)
+{
+	switch (cmd) {
+
+        /* these are shared with the accel side */
+        case SENSORIOCSPOLLRATE:
+          switch (arg) {
+            /* switching to manual polling */
+            case SENSOR_POLLRATE_MANUAL:
+              return ioctl(filp, cmd, arg);
+
+            /* external signalling not supported */
+            case SENSOR_POLLRATE_EXTERNAL:
+            /* zero would be bad */
+            case 0:
+              return -EINVAL;
+
+            /* set default/max polling rate */
+            case SENSOR_POLLRATE_MAX:
+            case SENSOR_POLLRATE_DEFAULT:
+              return mag_ioctl(filp, SENSORIOCSPOLLRATE, MPU9250_MAG_DEFAULT_RATE);
+
+            /* adjust to a legal polling interval in Hz */
+            default: {
+              // only support 100Hz.
+              if (arg == MPU9250_MAG_DEFAULT_RATE) {
+                _mag_sample_rate = arg;
+                if (_call_interval == 0) {
+                  return ioctl(filp, cmd, SENSOR_POLLRATE_DEFAULT);
+                } else {
+                  return OK;
+                }
+              } else {
+                return -EINVAL;
+              }
+            }
+          }
+          
+	case SENSORIOCGPOLLRATE:
+          if (_call_interval == 0) {
+            return SENSOR_POLLRATE_MANUAL;
+          }
+          return _mag_sample_rate;
+
+	case SENSORIOCRESET:
+          return ioctl(filp, cmd, arg);
+
+	case SENSORIOCSQUEUEDEPTH: {
+			/* lower bound is mandatory, upper bound is a sanity check */
+			if ((arg < 1) || (arg > 100)) {
+				return -EINVAL;
+			}
+
+			irqstate_t flags = irqsave();
+
+			if (!_mag_reports->resize(arg)) {
+				irqrestore(flags);
+				return -ENOMEM;
+			}
+
+			irqrestore(flags);
+
+			return OK;
+		}
+
+	case SENSORIOCGQUEUEDEPTH:
+		return _mag_reports->size();
+
+	case MAGIOCSSAMPLERATE:
+          if (arg == MPU9250_MAG_DEFAULT_RATE) {
+                // only support 100Hz.
+            _mag_sample_rate = arg;
+            return OK;
+          } else {
+            return -EINVAL;
+          }
+
+	case MAGIOCGSAMPLERATE:
+		return _mag_sample_rate;
+
+	case MAGIOCSLOWPASS:
+	case MAGIOCGLOWPASS:
+		/* not supported, no internal filtering */
+		return -EINVAL;
+
+	case MAGIOCSSCALE:
+		/* copy scale in */
+		memcpy(&_mag_scale, (struct mag_scale *) arg, sizeof(_mag_scale));
+		return OK;
+
+	case MAGIOCGSCALE:
+		/* copy scale out */
+		memcpy((struct mag_scale *) arg, &_mag_scale, sizeof(_mag_scale));
+		return OK;
+
+	case MAGIOCSRANGE:
+		return -EINVAL;
+
+	case MAGIOCGRANGE:
+		return _mag_range_ga;
+
+	case MAGIOCCALIBRATE:
+        	return OK;
+
+	case MAGIOCEXSTRAP:
+        	return -EINVAL;
+
+        case MAGIOCSELFTEST:
+        	return OK;
+
+	case MAGIOCGEXTERNAL:
+        	return 0;  // only internal
+
+	case MAGIOCSTEMPCOMP:
+        	return -EINVAL;
+
+	default:
+		/* give it to the superclass */
+		return SPI::ioctl(filp, cmd, arg);
+	}
+}
+#endif
+
 uint8_t
 MPU9250::read_reg(unsigned reg, uint32_t speed)
 {
@@ -1428,6 +1887,9 @@ MPU9250::start()
 	/* discard any stale data in the buffers */
 	_accel_reports->flush();
 	_gyro_reports->flush();
+#ifdef MPU9250_MAG_ENABLE
+        _mag_reports->flush();
+#endif
 
 	/* start polling at the specified rate */
 	hrt_call_every(&_call,
@@ -1528,6 +1990,11 @@ MPU9250::measure()
 		int16_t		gyro_x;
 		int16_t		gyro_y;
 		int16_t		gyro_z;
+#ifdef MPU9250_MAG_ENABLE
+		int16_t		mag_x;
+		int16_t		mag_y;
+		int16_t		mag_z;
+#endif
 	} report;
 
 	/* start measuring */
@@ -1580,13 +2047,34 @@ MPU9250::measure()
 	report.gyro_y = int16_t_from_bytes(mpu_report.gyro_y);
 	report.gyro_z = int16_t_from_bytes(mpu_report.gyro_z);
 
+#ifdef MPU9250_MAG_ENABLE
+        report.mag_x = (int16_t)(mpu_report.hx[1] << 8 | mpu_report.hx[0]);
+        report.mag_y = (int16_t)(mpu_report.hy[1] << 8 | mpu_report.hy[0]);
+        report.mag_z = (int16_t)(mpu_report.hz[1] << 8 | mpu_report.hz[0]);
+#if 0
+        // exchange mag axis to same as acc/gyro axis. x <= y / y <= x / z <= -z
+        int16_t tmp_s16;
+        tmp_s16 = report.mag_x;
+        report.mag_x = report.mag_y;
+        report.mag_y = tmp_s16;
+        report.mag_z = -report.mag_z;
+#endif
+#endif
+
 	if (report.accel_x == 0 &&
 	    report.accel_y == 0 &&
 	    report.accel_z == 0 &&
 	    report.temp == 0 &&
 	    report.gyro_x == 0 &&
 	    report.gyro_y == 0 &&
-	    report.gyro_z == 0) {
+	    report.gyro_z == 0
+#ifdef MPU9250_MAG_ENABLE
+            &&
+            report.mag_x == 0 &&
+            report.mag_y == 0 &&
+            report.mag_z == 0
+#endif
+            ) {
 		// all zero data - probably a SPI bus error
 		perf_count(_bad_transfers);
 		perf_end(_sample_perf);
@@ -1630,6 +2118,9 @@ MPU9250::measure()
 	 */
 	accel_report		arb;
 	gyro_report		grb;
+#ifdef MPU9250_MAG_ENABLE
+	mag_report		mrb;
+#endif
 
 	/*
 	 * Adjust and scale results to m/s^2.
@@ -1728,8 +2219,53 @@ MPU9250::measure()
 	grb.temperature_raw = report.temp;
 	grb.temperature = _last_temperature;
 
+#ifdef MPU9250_MAG_ENABLE
+        bool mag_notify = false;
+        if ((arb.timestamp - _last_notified_time_mag) > (1000000 / MPU9250_MAG_DEFAULT_RATE)) {
+          _last_notified_time_mag = mrb.timestamp = arb.timestamp;
+          mrb.error_count = arb.error_count;
+
+          mrb.range_ga = _mag_range_ga;
+          mrb.scaling = _mag_range_scale;
+          mrb.temperature = _last_temperature;
+          mrb.x_raw = report.mag_x;
+          mrb.y_raw = report.mag_y;
+          mrb.z_raw = report.mag_z;
+        
+          xraw_f = report.mag_x;
+          yraw_f = report.mag_y;
+          zraw_f = report.mag_z;
+
+          // apply user specified rotation
+          rotate_3f(_rotation, xraw_f, yraw_f, zraw_f);
+
+          mrb.x = (((xraw_f * (((_mag_asax - 128) / 2.0f) / 128.0f + 1.0f)) * _mag_range_scale)
+                   - _mag_scale.x_offset) * _mag_scale.x_scale;
+          mrb.y = (((yraw_f * (((_mag_asay - 128) / 2.0f) / 128.0f + 1.0f)) * _mag_range_scale)
+                   - _mag_scale.y_offset) * _mag_scale.y_scale;
+          mrb.z = (((zraw_f * (((_mag_asaz - 128) / 2.0f) / 128.0f + 1.0f)) * _mag_range_scale)
+                   - _mag_scale.z_offset) * _mag_scale.z_scale;
+
+          if ((mpu_report.wia != AK8963_WHOAMI) ||
+              (mpu_report.st2 & 0x08) ||
+              (abs(report.mag_x) > 32760) ||
+              (abs(report.mag_y) > 32760) ||
+              (abs(report.mag_z) > 32760)) {
+            perf_count(_bad_transfers);
+            perf_end(_sample_perf);
+            return;
+          }
+          mag_notify = true;
+        }
+#endif
+        
 	_accel_reports->force(&arb);
 	_gyro_reports->force(&grb);
+#ifdef MPU9250_MAG_ENABLE
+        if (mag_notify) {
+          _mag_reports->force(&mrb);
+        }
+#endif
 
 	/* notify anyone waiting for data */
 	if (accel_notify) {
@@ -1740,6 +2276,12 @@ MPU9250::measure()
 		_gyro->parent_poll_notify();
 	}
 
+#ifdef MPU9250_MAG_ENABLE
+	if (mag_notify) {
+		_mag->parent_poll_notify();
+	}
+#endif
+        
 	if (accel_notify && !(_pub_blocked)) {
 		/* log the time of this report */
 		perf_begin(_controller_latency_perf);
@@ -1752,6 +2294,13 @@ MPU9250::measure()
 		/* publish it */
 		orb_publish(ORB_ID(sensor_gyro), _gyro->_gyro_topic, &grb);
 	}
+
+#ifdef MPU9250_MAG_ENABLE
+	if (mag_notify && !(_pub_blocked)) {
+		/* publish it */
+		orb_publish(ORB_ID(sensor_mag), _mag->_mag_topic, &mrb);
+	}
+#endif
 
 	/* stop measuring */
 	perf_end(_sample_perf);
@@ -1770,6 +2319,9 @@ MPU9250::print_info()
 	perf_print_counter(_duplicates);
 	_accel_reports->print_info("accel queue");
 	_gyro_reports->print_info("gyro queue");
+#ifdef MPU9250_MAG_ENABLE
+	_mag_reports->print_info("mag queue");
+#endif
 	::printf("checked_next: %u\n", _checked_next);
 
 	for (uint8_t i = 0; i < MPU9250_NUM_CHECKED_REGISTERS; i++) {
@@ -1872,6 +2424,70 @@ MPU9250_gyro::ioctl(struct file *filp, int cmd, unsigned long arg)
 	}
 }
 
+#ifdef MPU9250_MAG_ENABLE
+MPU9250_mag::MPU9250_mag(MPU9250 *parent, const char *path) :
+	CDev("MPU9250_mag", path),
+	_parent(parent),
+	_mag_topic(nullptr),
+	_mag_orb_class_instance(-1),
+	_mag_class_instance(-1)
+{
+}
+
+MPU9250_mag::~MPU9250_mag()
+{
+	if (_mag_class_instance != -1) {
+		unregister_class_devname(MAG_BASE_DEVICE_PATH, _mag_class_instance);
+	}
+}
+
+int
+MPU9250_mag::init()
+{
+	int ret;
+
+	// do base class init
+	ret = CDev::init();
+
+	/* if probe/setup failed, bail now */
+	if (ret != OK) {
+		DEVICE_DEBUG("mag init failed");
+		return ret;
+	}
+
+	_mag_class_instance = register_class_devname(MAG_BASE_DEVICE_PATH);
+
+	return ret;
+}
+
+void
+MPU9250_mag::parent_poll_notify()
+{
+	poll_notify(POLLIN);
+}
+
+ssize_t
+MPU9250_mag::read(struct file *filp, char *buffer, size_t buflen)
+{
+	return _parent->mag_read(filp, buffer, buflen);
+}
+
+int
+MPU9250_mag::ioctl(struct file *filp, int cmd, unsigned long arg)
+{
+
+	switch (cmd) {
+	case DEVIOCGDEVICEID:
+		return (int)CDev::ioctl(filp, cmd, arg);
+		break;
+
+	default:
+		return _parent->mag_ioctl(filp, cmd, arg);
+	}
+}
+
+#endif
+
 /**
  * Local functions in support of the shell command.
  */
@@ -1903,6 +2519,9 @@ start(bool external_bus, enum Rotation rotation)
 	MPU9250 **g_dev_ptr = external_bus ? &g_dev_ext : &g_dev_int;
 	const char *path_accel = external_bus ? MPU_DEVICE_PATH_ACCEL_EXT : MPU_DEVICE_PATH_ACCEL;
 	const char *path_gyro  = external_bus ? MPU_DEVICE_PATH_GYRO_EXT : MPU_DEVICE_PATH_GYRO;
+#ifdef MPU9250_MAG_ENABLE
+	const char *path_mag  = external_bus ? MPU_DEVICE_PATH_MAG_EXT : MPU_DEVICE_PATH_MAG;
+#endif
 
 	if (*g_dev_ptr != nullptr)
 		/* if already started, the still command succeeded */
@@ -1913,13 +2532,21 @@ start(bool external_bus, enum Rotation rotation)
 	/* create the driver */
 	if (external_bus) {
 #ifdef PX4_SPI_BUS_EXT
+#ifdef MPU9250_MAG_ENABLE
+		*g_dev_ptr = new MPU9250(PX4_SPI_BUS_EXT, path_accel, path_gyro, path_mag, (spi_dev_e)PX4_SPIDEV_EXT_MPU, rotation);
+#else
 		*g_dev_ptr = new MPU9250(PX4_SPI_BUS_EXT, path_accel, path_gyro, (spi_dev_e)PX4_SPIDEV_EXT_MPU, rotation);
+#endif
 #else
 		errx(0, "External SPI not available");
 #endif
 
 	} else {
+#ifdef MPU9250_MAG_ENABLE
+		*g_dev_ptr = new MPU9250(PX4_SPI_BUS_SENSORS, path_accel, path_gyro, path_mag, (spi_dev_e)PX4_SPIDEV_MPU, rotation);
+#else
 		*g_dev_ptr = new MPU9250(PX4_SPI_BUS_SENSORS, path_accel, path_gyro, (spi_dev_e)PX4_SPIDEV_MPU, rotation);
+#endif
 	}
 
 	if (*g_dev_ptr == nullptr) {
@@ -1981,8 +2608,14 @@ test(bool external_bus)
 {
 	const char *path_accel = external_bus ? MPU_DEVICE_PATH_ACCEL_EXT : MPU_DEVICE_PATH_ACCEL;
 	const char *path_gyro  = external_bus ? MPU_DEVICE_PATH_GYRO_EXT : MPU_DEVICE_PATH_GYRO;
+#ifdef MPU9250_MAG_ENABLE
+	const char *path_mag  = external_bus ? MPU_DEVICE_PATH_MAG_EXT : MPU_DEVICE_PATH_MAG;
+#endif
 	accel_report a_report;
 	gyro_report g_report;
+#ifdef MPU9250_MAG_ENABLE
+	mag_report m_report;
+#endif
 	ssize_t sz;
 
 	/* get the driver */
@@ -1998,6 +2631,15 @@ test(bool external_bus)
 	if (fd_gyro < 0) {
 		err(1, "%s open failed", path_gyro);
 	}
+
+#ifdef MPU9250_MAG_ENABLE
+	/* get the driver */
+	int fd_mag = open(path_mag, O_RDONLY);
+
+	if (fd_mag < 0) {
+		err(1, "%s open failed", path_mag);
+	}
+#endif
 
 	/* reset to manual polling */
 	if (ioctl(fd, SENSORIOCSPOLLRATE, SENSOR_POLLRATE_MANUAL) < 0) {
@@ -2043,6 +2685,24 @@ test(bool external_bus)
 	warnx("temp:  \t%8.4f\tdeg celsius", (double)a_report.temperature);
 	warnx("temp:  \t%d\traw 0x%0x", (short)a_report.temperature_raw, (unsigned short)a_report.temperature_raw);
 
+#ifdef MPU9250_MAG_ENABLE
+	/* do a simple demand read */
+	sz = read(fd_mag, &m_report, sizeof(m_report));
+
+	if (sz != sizeof(m_report)) {
+		warnx("ret: %d, expected: %d", sz, sizeof(m_report));
+		err(1, "immediate mag read failed");
+	}
+
+	warnx("mag x: \t% 9.5f\tga", (double)m_report.x);
+	warnx("mag y: \t% 9.5f\tga", (double)m_report.y);
+	warnx("mag z: \t% 9.5f\tga", (double)m_report.z);
+	warnx("mag x: \t%d\traw", (int)m_report.x_raw);
+	warnx("mag y: \t%d\traw", (int)m_report.y_raw);
+	warnx("mag z: \t%d\traw", (int)m_report.z_raw);
+	warnx("mag range: %8.4f ga", (double)m_report.range_ga);
+#endif
+
 	/* reset to default polling */
 	if (ioctl(fd, SENSORIOCSPOLLRATE, SENSOR_POLLRATE_DEFAULT) < 0) {
 		err(1, "reset to default polling");
@@ -2050,6 +2710,9 @@ test(bool external_bus)
 
 	close(fd);
 	close(fd_gyro);
+#ifdef MPU9250_MAG_ENABLE
+	close(fd_mag);
+#endif
 
 	/* XXX add poll-rate tests here too */
 
@@ -2116,6 +2779,12 @@ regdump(bool external_bus)
 	printf("regdump @ %p\n", *g_dev_ptr);
 	(*g_dev_ptr)->print_registers();
 
+	char s[30];
+	sprintf(s, "%s%u", MAG_BASE_DEVICE_PATH, 0);
+        int fd = px4_open(s, 0);
+	int devid = px4_ioctl(fd, DEVIOCGDEVICEID, 0);
+        printf("%s devid:%d\n", s, devid);
+        px4_close(fd);
 	exit(0);
 }
 
