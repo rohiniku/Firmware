@@ -1366,7 +1366,7 @@ int commander_thread_main(int argc, char *argv[])
 				param_get(_param_map_mode_sw, &map_mode_sw_new);
 
 				if (map_mode_sw == 0 && map_mode_sw != map_mode_sw_new && map_mode_sw_new < input_rc_s::RC_INPUT_MAX_CHANNELS && map_mode_sw_new > 0) {
-					status.condition_system_sensors_initialized = Commander::preflightCheck(mavlink_fd, true, true, true, true, checkAirspeed,
+                                  status.condition_system_sensors_initialized = Commander::preflightCheck(mavlink_fd, true, true, true, false /* true => false. because i don't have baro sensor. */, checkAirspeed,
 							!(status.rc_input_mode == vehicle_status_s::RC_IN_MODE_OFF), !status.circuit_breaker_engaged_gpsfailure_check, hotplug_timeout);
 				}
 
