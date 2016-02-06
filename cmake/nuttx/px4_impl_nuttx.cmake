@@ -421,6 +421,7 @@ function(px4_os_add_flags)
 	set(added_include_dirs
 		${nuttx_export_dir}/include
 		${nuttx_export_dir}/include/cxx
+		${nuttx_export_dir}/include/uClibc++
 		${nuttx_export_dir}/arch/chip
 		${nuttx_export_dir}/arch/common
 		)
@@ -459,6 +460,14 @@ function(px4_os_add_flags)
 			-mfloat-abi=hard
 			)
 	elseif (${BOARD} STREQUAL "aerocore")
+		set(cpu_flags
+			-mcpu=cortex-m4
+			-mthumb
+			-march=armv7e-m
+			-mfpu=fpv4-sp-d16
+			-mfloat-abi=hard
+			)
+	elseif (${BOARD} STREQUAL "px4-stm32f4discovery")
 		set(cpu_flags
 			-mcpu=cortex-m4
 			-mthumb
