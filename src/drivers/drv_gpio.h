@@ -111,7 +111,11 @@
 #endif
 
 #ifdef CONFIG_ARCH_BOARD_PX4_STM32F4DISCOVERY
-/* no GPIO driver on the PX4_STM32F4DISCOVERY board */
+/**
+ * Device paths for things that support the GPIO ioctl protocol.
+ */
+# define PX4FMU_DEVICE_PATH	"/dev/px4fmu"
+
 #endif
 
 #ifdef CONFIG_ARCH_BOARD_SITL
