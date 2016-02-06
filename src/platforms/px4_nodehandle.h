@@ -197,11 +197,16 @@ public:
 	template<typename T>
 	Subscriber<T> *subscribe(void(*fp)(const T &),  unsigned interval)
 	{
+#if 0//DELDEL
 		(void)interval;
 		SubscriberUORBCallback<T> *sub_px4 = new SubscriberUORBCallback<T>(interval, std::bind(fp, std::placeholders::_1));
 		update_sub_min_interval(interval, sub_px4);
 		_subs.add((SubscriberNode *)sub_px4);
 		return (Subscriber<T> *)sub_px4;
+#else//DELDEL
+                ASSERT(0);
+                return 0;
+#endif//DELDEL
 	}
 
 	/**
@@ -212,11 +217,16 @@ public:
 	template<typename T, typename C>
 	Subscriber<T> *subscribe(void(C::*fp)(const T &), C *obj, unsigned interval)
 	{
+#if 0//DELDEL
 		(void)interval;
 		SubscriberUORBCallback<T> *sub_px4 = new SubscriberUORBCallback<T>(interval, std::bind(fp, obj, std::placeholders::_1));
 		update_sub_min_interval(interval, sub_px4);
 		_subs.add((SubscriberNode *)sub_px4);
 		return (Subscriber<T> *)sub_px4;
+#else//DELDEL
+                ASSERT(0);
+                return 0;
+#endif//DELDEL
 	}
 
 	/**

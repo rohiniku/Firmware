@@ -223,10 +223,12 @@ protected:
 	uORB::SubscriptionBase *_uorb_sub;	/**< Handle to the subscription */
 
 #ifndef CONFIG_ARCH_BOARD_SIM
+#if 0//DELDEL
 	typename std::remove_reference < decltype(((T *)nullptr)->data()) >::type getUORBData()
 	{
 		return (typename std::remove_reference < decltype(((T *)nullptr)->data()) >::type) * _uorb_sub;
 	}
+#endif//DELDEL
 #endif
 
 	/**
@@ -249,13 +251,21 @@ public:
 	 */
 	SubscriberUORBCallback(unsigned interval
 #ifndef CONFIG_ARCH_BOARD_SIM
+#if 0//DELDEL
 			       , std::function<void(const T &)> cbf)
+#else//DELDEL
+			      )
+#endif//DELDEL
 #else
 			      )
 #endif
 		:
+#if 0//DELDEL
 		SubscriberUORB<T>(interval),
 		_cbf(cbf)
+#else//DELDEL
+		SubscriberUORB<T>(interval)
+#endif//DELDEL
 	{}
 
 	virtual ~SubscriberUORBCallback() {};
@@ -275,7 +285,7 @@ public:
 		/* get latest data */
 		this->_uorb_sub->update(this->get_void_ptr());
 
-
+#if 0//DELDEL
 		/* Check if there is a callback */
 		if (_cbf == nullptr) {
 			return;
@@ -283,12 +293,14 @@ public:
 
 		/* Call callback which performs actions based on this data */
 		_cbf(Subscriber<T>::get());
-
+#endif//DELDEL
 	};
 
 protected:
 #ifndef CONFIG_ARCH_BOARD_SIM
+#if 0//DELDEL
 	std::function<void(const T &)> _cbf;	/**< Callback that the user provided on the subscription */
+#endif//DELDEL
 #endif
 };
 #endif
