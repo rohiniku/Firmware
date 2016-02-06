@@ -53,12 +53,13 @@
 #include <errno.h>
 
 #include <nuttx/arch.h>
-#include <nuttx/spi.h>
+#include <nuttx/spi/spi.h>
 #include <nuttx/i2c.h>
 #include <nuttx/sdio.h>
 #include <nuttx/mmcsd.h>
 #include <nuttx/analog/adc.h>
-#include <nuttx/gran.h>
+#include <nuttx/mm/gran.h>
+#include <nuttx/board.h>
 
 #include <stm32.h>
 #include "board_config.h"
@@ -71,6 +72,11 @@
 
 #include <systemlib/cpuload.h>
 #include <systemlib/perf_counter.h>
+
+static struct spi_dev_s *spi1;
+#if (defined(CONFIG_MMCSD_SPI) && defined(CONFIG_MMCSD)) || (defined(CONFIG_MTD) && defined(CONFIG_MTD_W25))
+static struct spi_dev_s *spi2;
+#endif
 
 /****************************************************************************
  * Pre-Processor Definitions
@@ -94,6 +100,19 @@
 #  endif
 #endif
 
+/*
+ * Ideally we'd be able to get these from up_internal.h,
+ * but since we want to be able to disable the NuttX use
+ * of leds for system indication at will and there is no
+ * separate switch, we need to build independent of the
+ * CONFIG_ARCH_LEDS configuration switch.
+ */
+__BEGIN_DECLS
+extern void led_init(void);
+extern void led_on(int led);
+extern void led_off(int led);
+__END_DECLS
+
 /****************************************************************************
  * Protected Functions
  ****************************************************************************/
@@ -102,6 +121,7 @@
  * Public Functions
  ****************************************************************************/
 
+#if 0
 /************************************************************************************
  * Name: stm32_boardinitialize
  *
@@ -116,8 +136,9 @@ __EXPORT void
 stm32_boardinitialize(void)
 {
 	/* configure LEDs */
-	up_ledinit();
+        board_autoled_initialize();
 }
+#endif
 
 /****************************************************************************
  * Name: nsh_archinitialize
@@ -129,6 +150,7 @@ stm32_boardinitialize(void)
 
 #include <math.h>
 
+#if 0  /* DELDEL */
 #ifdef __cplusplus
 __EXPORT int matherr(struct __exception *e)
 {
@@ -140,9 +162,15 @@ __EXPORT int matherr(struct exception *e)
 	return 1;
 }
 #endif
+#endif  /* DELDEL */
 
 __EXPORT int nsh_archinitialize(void)
 {
+	/* configure always-on ADC pins */
+	stm32_configgpio(GPIO_ADC1_IN10);
+	stm32_configgpio(GPIO_ADC1_IN11);
+	stm32_configgpio(GPIO_ADC1_IN12);
+	stm32_configgpio(GPIO_ADC1_IN13);
 
 	/* configure the high-resolution time/callout interface */
 	hrt_init();
@@ -168,6 +196,53 @@ __EXPORT int nsh_archinitialize(void)
 		       ts_to_abstime(&ts),
 		       (hrt_callout)stm32_serial_dma_poll,
 		       NULL);
+
+	/* initial LED state */
+	drv_led_start();
+	led_off(LED_AMBER);
+	led_off(LED_BLUE);
+
+	/* Configure SPI-based devices */
+	spi1 = up_spiinitialize(1);
+
+	if (!spi1) {
+		warnx("[boot] FAILED to initialize SPI port 1\r\n");
+		led_on(LED_AMBER);
+		return -ENODEV;
+	}
+
+	/* Default SPI1 to 1MHz and de-assert the known chip selects. */
+	SPI_SETFREQUENCY(spi1, 10000000);
+	SPI_SETBITS(spi1, 8);
+	SPI_SETMODE(spi1, SPIDEV_MODE3);
+	SPI_SELECT(spi1, PX4_SPIDEV_ACCEL, false);
+	SPI_SELECT(spi1, PX4_SPIDEV_MPU, false);
+	up_udelay(20);
+
+#if (defined(CONFIG_MMCSD_SPI) && defined(CONFIG_MMCSD)) || (defined(CONFIG_MTD) && defined(CONFIG_MTD_W25))
+	/* Get the SPI port for the microSD slot */
+	spi2 = up_spiinitialize(2);
+
+	if (!spi2) {
+		warnx("[boot] FAILED to initialize SPI port 2\n");
+		led_on(LED_AMBER);
+		return -ENODEV;
+	}
+
+#if defined(CONFIG_MMCSD_SPI) && defined(CONFIG_MMCSD)
+	int result;
+
+	result = mmcsd_spislotinitialize(CONFIG_NSH_MMCSDMINOR, CONFIG_NSH_MMCSDSLOTNO, spi2);
+
+	if (result != OK) {
+		warnx("[boot] FAILED to bind SPI port 2 to the MMCSD driver\n");
+		led_on(LED_AMBER);
+		return -ENODEV;
+	}
+#elif defined(CONFIG_MTD) && defined(CONFIG_MTD_W25)
+        /* to initialize SPI2 and W25 is in mtd initialize process */
+#endif
+#endif
 
 	return OK;
 }

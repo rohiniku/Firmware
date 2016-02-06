@@ -124,7 +124,7 @@ private:
 #if defined(CONFIG_ARCH_BOARD_PX4FMU_V2)
 	static const unsigned _max_actuators = 6;
 #endif
-#if defined(CONFIG_ARCH_BOARD_AEROCORE)
+#if defined(CONFIG_ARCH_BOARD_AEROCORE) || defined(CONFIG_ARCH_BOARD_STM32F4_DISCOVERY)
 	static const unsigned _max_actuators = 8;
 #endif
 
@@ -232,7 +232,7 @@ const PX4FMU::GPIOConfig PX4FMU::_gpio_tab[] = {
 	{GPIO_VDD_5V_HIPOWER_OC, 0,                       0},
 	{GPIO_VDD_5V_PERIPH_OC,  0,                       0},
 #endif
-#if defined(CONFIG_ARCH_BOARD_AEROCORE)
+#if defined(CONFIG_ARCH_BOARD_AEROCORE) || defined(CONFIG_ARCH_BOARD_STM32F4_DISCOVERY)
 	/* AeroCore breaks out User GPIOs on J11 */
 	{GPIO_GPIO0_INPUT,       GPIO_GPIO0_OUTPUT,       0},
 	{GPIO_GPIO1_INPUT,       GPIO_GPIO1_OUTPUT,       0},
@@ -414,7 +414,7 @@ PX4FMU::set_mode(Mode mode)
 
 		break;
 
-#ifdef CONFIG_ARCH_BOARD_AEROCORE
+#if defined(CONFIG_ARCH_BOARD_AEROCORE) || defined(CONFIG_ARCH_BOARD_STM32F4_DISCOVERY)
 
 	case MODE_8PWM: // AeroCore PWMs as 8 PWM outs
 		DEVICE_DEBUG("MODE_8PWM");
@@ -897,7 +897,7 @@ PX4FMU::ioctl(file *filp, int cmd, unsigned long arg)
 	case MODE_2PWM:
 	case MODE_4PWM:
 	case MODE_6PWM:
-#ifdef CONFIG_ARCH_BOARD_AEROCORE
+#if defined(CONFIG_ARCH_BOARD_AEROCORE) || defined(CONFIG_ARCH_BOARD_STM32F4_DISCOVERY)
 	case MODE_8PWM:
 #endif
 		ret = pwm_ioctl(filp, cmd, arg);
@@ -1133,7 +1133,7 @@ PX4FMU::pwm_ioctl(file *filp, int cmd, unsigned long arg)
 			break;
 		}
 
-#ifdef CONFIG_ARCH_BOARD_AEROCORE
+#if defined(CONFIG_ARCH_BOARD_AEROCORE) || defined(CONFIG_ARCH_BOARD_STM32F4_DISCOVERY)
 
 	case PWM_SERVO_SET(7):
 	case PWM_SERVO_SET(6):
@@ -1171,7 +1171,7 @@ PX4FMU::pwm_ioctl(file *filp, int cmd, unsigned long arg)
 
 		break;
 
-#ifdef CONFIG_ARCH_BOARD_AEROCORE
+#if defined(CONFIG_ARCH_BOARD_AEROCORE) || defined(CONFIG_ARCH_BOARD_STM32F4_DISCOVERY)
 
 	case PWM_SERVO_GET(7):
 	case PWM_SERVO_GET(6):
@@ -1209,7 +1209,7 @@ PX4FMU::pwm_ioctl(file *filp, int cmd, unsigned long arg)
 	case PWM_SERVO_GET_RATEGROUP(3):
 	case PWM_SERVO_GET_RATEGROUP(4):
 	case PWM_SERVO_GET_RATEGROUP(5):
-#ifdef CONFIG_ARCH_BOARD_AEROCORE
+#if defined(CONFIG_ARCH_BOARD_AEROCORE) || defined(CONFIG_ARCH_BOARD_STM32F4_DISCOVERY)
 	case PWM_SERVO_GET_RATEGROUP(6):
 	case PWM_SERVO_GET_RATEGROUP(7):
 #endif
@@ -1219,7 +1219,7 @@ PX4FMU::pwm_ioctl(file *filp, int cmd, unsigned long arg)
 	case PWM_SERVO_GET_COUNT:
 	case MIXERIOCGETOUTPUTCOUNT:
 		switch (_mode) {
-#ifdef CONFIG_ARCH_BOARD_AEROCORE
+#if defined(CONFIG_ARCH_BOARD_AEROCORE) || defined(CONFIG_ARCH_BOARD_STM32F4_DISCOVERY)
 
 		case MODE_8PWM:
 			*(unsigned *)arg = 8;
@@ -1272,7 +1272,7 @@ PX4FMU::pwm_ioctl(file *filp, int cmd, unsigned long arg)
 				set_mode(MODE_6PWM);
 				break;
 #endif
-#if defined(CONFIG_ARCH_BOARD_AEROCORE)
+#if defined(CONFIG_ARCH_BOARD_AEROCORE) || defined(CONFIG_ARCH_BOARD_STM32F4_DISCOVERY)
 
 			case 8:
 				set_mode(MODE_8PWM);
@@ -1371,7 +1371,7 @@ PX4FMU::write(file *filp, const char *buffer, size_t len)
 	unsigned count = len / 2;
 	uint16_t values[6];
 
-#ifdef CONFIG_ARCH_BOARD_AEROCORE
+#if defined(CONFIG_ARCH_BOARD_AEROCORE) || defined(CONFIG_ARCH_BOARD_STM32F4_DISCOVERY)
 
 	if (count > 8) {
 		// we have at most 8 outputs
@@ -1479,6 +1479,95 @@ PX4FMU::sensor_reset(int ms)
 	// stm32_configgpio(GPIO_ACCEL_DRDY);
 	// stm32_configgpio(GPIO_EXTI_MPU_DRDY);
 
+#endif
+#endif
+#if defined(CONFIG_ARCH_BOARD_STM32F4_DISCOVERY)
+	if (ms < 1) {
+		ms = 1;
+	}
+
+	/* disable SPI bus */
+	stm32_configgpio(GPIO_SPI_CS_ACCEL_OFF);
+	stm32_configgpio(GPIO_SPI_CS_MPU_OFF);
+
+	stm32_gpiowrite(GPIO_SPI_CS_ACCEL_OFF, 0);
+	stm32_gpiowrite(GPIO_SPI_CS_MPU_OFF, 0);
+
+	stm32_configgpio(GPIO_SPI1_SCK_OFF);
+	stm32_configgpio(GPIO_SPI1_MISO_OFF);
+	stm32_configgpio(GPIO_SPI1_MOSI_OFF);
+
+	stm32_gpiowrite(GPIO_SPI1_SCK_OFF, 0);
+	stm32_gpiowrite(GPIO_SPI1_MISO_OFF, 0);
+	stm32_gpiowrite(GPIO_SPI1_MOSI_OFF, 0);
+
+	stm32_configgpio(GPIO_ACCEL1_DRDY_OFF);
+	stm32_configgpio(GPIO_ACCEL2_DRDY_OFF);
+	stm32_configgpio(GPIO_EXTI_MPU_DRDY_OFF);
+
+	stm32_gpiowrite(GPIO_ACCEL1_DRDY_OFF, 0);
+	stm32_gpiowrite(GPIO_ACCEL2_DRDY_OFF, 0);
+	stm32_gpiowrite(GPIO_EXTI_MPU_DRDY_OFF, 0);
+
+	/* set the sensor rail off */
+	// stm32_configgpio(GPIO_VDD_3V3_SENSORS_EN);
+	// stm32_gpiowrite(GPIO_VDD_3V3_SENSORS_EN, 0);
+
+	/* wait for the sensor rail to reach GND */
+	usleep(ms * 1000);
+	warnx("reset done, %d ms", ms);
+
+	/* re-enable power */
+
+	/* switch the sensor rail back on */
+	// stm32_gpiowrite(GPIO_VDD_3V3_SENSORS_EN, 1);
+
+	/* wait a bit before starting SPI, different times didn't influence results */
+	// usleep(100);
+
+	/* reconfigure the SPI1 pins */
+#ifdef CONFIG_STM32_SPI1
+	stm32_configgpio(GPIO_SPI_CS_ACCEL);
+	stm32_configgpio(GPIO_SPI_CS_MPU);
+
+	/* De-activate all peripherals,
+	 * required for some peripheral
+	 * state machines
+	 */
+	stm32_gpiowrite(GPIO_SPI_CS_ACCEL, 1);
+	stm32_gpiowrite(GPIO_SPI_CS_MPU, 1);
+
+	stm32_configgpio(GPIO_SPI1_SCK);
+	stm32_configgpio(GPIO_SPI1_MISO);
+	stm32_configgpio(GPIO_SPI1_MOSI);
+
+	// // XXX bring up the EXTI pins again
+	// stm32_configgpio(GPIO_GYRO_DRDY);
+	// stm32_configgpio(GPIO_MAG_DRDY);
+	// stm32_configgpio(GPIO_ACCEL_DRDY);
+	// stm32_configgpio(GPIO_EXTI_MPU_DRDY);
+#endif
+	/* reconfigure the SPI2 pins */
+#ifdef CONFIG_STM32_SPI2
+	// stm32_configgpio(GPIO_SPI_CS_ACCEL);
+	// stm32_configgpio(GPIO_SPI_CS_MPU);
+
+	/* De-activate all peripherals,
+	 * required for some peripheral
+	 * state machines
+	 */
+	// stm32_gpiowrite(GPIO_SPI_CS_ACCEL, 1);
+	// stm32_gpiowrite(GPIO_SPI_CS_MPU, 1);
+
+	stm32_configgpio(GPIO_SPI2_SCK);
+	stm32_configgpio(GPIO_SPI2_MISO);
+	stm32_configgpio(GPIO_SPI2_MOSI);
+
+	// // XXX bring up the EXTI pins again
+	// stm32_configgpio(GPIO_GYRO_DRDY);
+	// stm32_configgpio(GPIO_MAG_DRDY);
+	// stm32_configgpio(GPIO_ACCEL_DRDY);
+	// stm32_configgpio(GPIO_EXTI_MPU_DRDY);
 #endif
 #endif
 }
@@ -1699,7 +1788,7 @@ fmu_new_mode(PortMode new_mode)
 #if defined(CONFIG_ARCH_BOARD_PX4FMU_V2)
 		servo_mode = PX4FMU::MODE_6PWM;
 #endif
-#if defined(CONFIG_ARCH_BOARD_AEROCORE)
+#if defined(CONFIG_ARCH_BOARD_AEROCORE) || defined(CONFIG_ARCH_BOARD_STM32F4_DISCOVERY)
 		servo_mode = PX4FMU::MODE_8PWM;
 #endif
 		break;
@@ -2101,7 +2190,7 @@ fmu_main(int argc, char *argv[])
 #if defined(CONFIG_ARCH_BOARD_PX4FMU_V1)
 	fprintf(stderr,
 		"  mode_gpio, mode_serial, mode_pwm, mode_gpio_serial, mode_pwm_serial, mode_pwm_gpio, test, fake, sensor_reset, id\n");
-#elif defined(CONFIG_ARCH_BOARD_PX4FMU_V2) || defined(CONFIG_ARCH_BOARD_AEROCORE)
+#elif defined(CONFIG_ARCH_BOARD_PX4FMU_V2) || defined(CONFIG_ARCH_BOARD_AEROCORE) || defined(CONFIG_ARCH_BOARD_STM32F4_DISCOVERY)
 	fprintf(stderr, "  mode_gpio, mode_pwm, mode_pwm4, test, sensor_reset [milliseconds], i2c <bus> <hz>\n");
 #endif
 	exit(1);

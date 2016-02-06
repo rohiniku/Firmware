@@ -34,8 +34,36 @@ px4_add_module(
 	MODULE drivers__boards__px4-stm32f4discovery
 	SRCS
 		px4discovery_init.c
-		px4discovery_usb.c
 		px4discovery_led.c
+		stm32f4discovery_pwm_servo.c
+		stm32f4discovery_spi.c
+		stm32_autoleds.c
+		stm32_bmp180.c
+		stm32_boot.c
+		stm32_bringup.c
+		stm32_buttons.c
+		stm32_ethernet.c
+		stm32_extmem.c
+		stm32_idle.c
+		stm32_max31855.c
+		stm32_max6675.c
+		stm32_nsh.c
+		stm32_pm.c
+		stm32_pmbuttons.c
+		stm32_pwm.c
+		stm32_qencoder.c
+		stm32_sdio.c
+#		stm32_spi.c
+		stm32_ssd1289.c
+		stm32_ssd1351.c
+		stm32_timer.c
+		stm32_ug2864ambag01.c
+		stm32_ug2864hsweg01.c
+		stm32_uid.c
+		stm32_usb.c
+		stm32_userleds.c
+		stm32_watchdog.c
+		stm32_zerocross.c
 	DEPENDS
 		platforms__common
 	)

@@ -1,7 +1,6 @@
 /****************************************************************************
  *
  *   Copyright (C) 2012 PX4 Development Team. All rights reserved.
- *   Author: @author Lorenz Meier <lm@inf.ethz.ch>
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -32,81 +31,89 @@
  *
  ****************************************************************************/
 
-/**
- * @file px4_nuttx_tasks.c
- * Implementation of existing task API for NuttX
+/*
+ * @file px4fmu_pwm_servo.c
+ *
+ * Configuration data for the stm32 pwm_servo driver.
+ *
+ * Note that these arrays must always be fully-sized.
  */
 
-#include <px4_config.h>
-#include <unistd.h>
-#include <stdio.h>
-#include <fcntl.h>
-#include <sched.h>
-#include <signal.h>
-#include <unistd.h>
-#include <float.h>
-#include <string.h>
+#include <stdint.h>
 
-#include <sys/stat.h>
-#include <sys/types.h>
+#include <stm32.h>
+#include <stm32_gpio.h>
+#include <stm32_tim.h>
 
-#ifndef CONFIG_ARCH_BOARD_SIM
-#include <stm32_pwr.h>
-#endif
+#include <drivers/stm32/drv_pwm_servo.h>
+#include <drivers/drv_pwm_output.h>
 
-#include <systemlib/systemlib.h>
+#include <arch/board/board.h>
+#include <nuttx/board.h>
+#include "stm32f4discovery.h"
 
-// Didn't seem right to include up_internal.h, so direct extern instead.
-extern void up_systemreset(void) noreturn_function;
-
-void
-px4_systemreset(bool to_bootloader)
-{
-	if (to_bootloader) {
-#ifndef CONFIG_ARCH_BOARD_SIM
-		stm32_pwr_enablebkp(true);
-#endif
-
-		/* XXX wow, this is evil - write a magic number into backup register zero */
-		*(uint32_t *)0x40002850 = 0xb007b007;
-
-#ifndef CONFIG_ARCH_BOARD_SIM
-		stm32_pwr_enablebkp(false);
-#endif
+__EXPORT const struct pwm_servo_timer pwm_timers[PWM_SERVO_MAX_TIMERS] = {
+	{
+		.base = STM32_TIM1_BASE,
+		.clock_register = STM32_RCC_APB2ENR,
+		.clock_bit = RCC_APB2ENR_TIM1EN,
+		.clock_freq = STM32_APB2_TIM1_CLKIN
+	},
+	{
+		.base = STM32_TIM3_BASE,
+		.clock_register = STM32_RCC_APB1ENR,
+		.clock_bit = RCC_APB1ENR_TIM3EN,
+		.clock_freq = STM32_APB1_TIM3_CLKIN
 	}
+};
 
-	up_systemreset();
-
-	/* lock up here */
-	while (true);
-}
-
-int px4_task_spawn_cmd(const char *name, int scheduler, int priority, int stack_size, main_t entry, char *const argv[])
-{
-	int pid;
-
-	sched_lock();
-
-	/* create the task */
-	pid = task_create(name, priority, stack_size, entry, argv);
-
-	if (pid > 0) {
-
-		/* configure the scheduler */
-		struct sched_param param;
-
-		param.sched_priority = priority;
-		sched_setscheduler(pid, scheduler, &param);
-
-		/* XXX do any other private task accounting here before the task starts */
+__EXPORT const struct pwm_servo_channel pwm_channels[PWM_SERVO_MAX_CHANNELS] = {
+	{
+		.gpio = GPIO_TIM1_CH1OUT,
+		.timer_index = 0,
+		.timer_channel = 1,
+		.default_value = 1500,
+	},
+	{
+		.gpio = GPIO_TIM1_CH2OUT,
+		.timer_index = 0,
+		.timer_channel = 2,
+		.default_value = 1500,
+	},
+	{
+		.gpio = GPIO_TIM1_CH3OUT,
+		.timer_index = 0,
+		.timer_channel = 3,
+		.default_value = 1500,
+	},
+	{
+		.gpio = GPIO_TIM1_CH4OUT,
+		.timer_index = 0,
+		.timer_channel = 4,
+		.default_value = 1500,
+	},
+	{
+		.gpio = GPIO_TIM3_CH1OUT,
+		.timer_index = 1,
+		.timer_channel = 1,
+		.default_value = 1500,
+	},
+	{
+		.gpio = GPIO_TIM3_CH2OUT,
+		.timer_index = 1,
+		.timer_channel = 2,
+		.default_value = 1500,
+	},
+	{
+		.gpio = GPIO_TIM3_CH3OUT,
+		.timer_index = 1,
+		.timer_channel = 3,
+		.default_value = 1500,
+	},
+	{
+		.gpio = GPIO_TIM3_CH4OUT,
+		.timer_index = 1,
+		.timer_channel = 4,
+		.default_value = 1500,
 	}
-
-	sched_unlock();
-
-	return pid;
-}
-
-int px4_task_delete(int pid)
-{
-	return task_delete(pid);
-}
+};
