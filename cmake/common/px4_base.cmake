@@ -489,7 +489,7 @@ function(px4_add_common_flags)
 		-Wno-sign-compare
 		-Wextra
 		#-Wshadow # very verbose due to eigen
-		-Wfloat-equal
+		#-Wfloat-equal
 		-Wpointer-arith
 		-Wmissing-declarations
 		-Wno-unused-parameter
