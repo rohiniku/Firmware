@@ -39,7 +39,7 @@ set(srcs
 	test_hott_telemetry.c
 	test_hrt.c
 	test_int.c
-	test_jig_voltages.c
+#DELDEL	test_jig_voltages.c
 	test_led.c
 	test_sensors.c
 	test_servo.c
@@ -58,7 +58,7 @@ set(srcs
 	test_rc.c
 	test_conv.cpp
 	test_mount.c
-	test_eigen.cpp
+#DELDEL	test_eigen.cpp
 	)
 
 if(${OS} STREQUAL "nuttx")

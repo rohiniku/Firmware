@@ -88,7 +88,7 @@ const struct {
 	{"servo",		test_servo,	OPT_NOJIGTEST | OPT_NOALLTEST},
 	{"ppm_loopback",	test_ppm_loopback,	OPT_NOALLTEST},
 	{"adc",			test_adc,	OPT_NOJIGTEST},
-	{"jig_voltages",	test_jig_voltages,	OPT_NOALLTEST},
+        //DELDEL	{"jig_voltages",	test_jig_voltages,	OPT_NOALLTEST},
 	{"uart_loopback",	test_uart_loopback,	OPT_NOJIGTEST | OPT_NOALLTEST},
 	{"uart_baudchange",	test_uart_baudchange,	OPT_NOJIGTEST | OPT_NOALLTEST},
 	{"uart_send",		test_uart_send,	OPT_NOJIGTEST | OPT_NOALLTEST},
@@ -113,7 +113,7 @@ const struct {
 #ifndef TESTS_MATHLIB_DISABLE
 	{"mathlib",		test_mathlib,	0},
 #endif
-	{"eigen",		test_eigen,	OPT_NOJIGTEST},
+        //DELDEL	{"eigen",		test_eigen,	OPT_NOJIGTEST},
 	{"help",		test_help,	OPT_NOALLTEST | OPT_NOHELP | OPT_NOJIGTEST},
 	{NULL,			NULL, 		0}
 };
