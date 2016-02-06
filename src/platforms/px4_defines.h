@@ -119,6 +119,17 @@ typedef param_t px4_param_t;
 #define PRId64 "lld"
 #endif
 
+#define MAX_RAND 32767
+#define M_LOG2E_F		(float)M_LOG2E
+#define M_LN10_F		(float)M_LN10
+#define M_PI_F			(float)M_PI
+#define M_TWOPI_F       	(M_PI_F * 2.0f)
+#define M_PI_2_F		(float)M_PI_2
+#define M_2_SQRTPI_F		1.12837916709551257390f
+#define M_DEG_TO_RAD_F 		0.01745329251994f
+#define M_RAD_TO_DEG_F 		57.2957795130823f
+#define M_DEG_TO_RAD 		0.01745329251994
+#define M_RAD_TO_DEG 		57.2957795130823
 /*
  * POSIX Specific defines
  */
