@@ -801,7 +801,7 @@ ToneAlarm::next_note()
 
 	// tune looks bad (unexpected EOF, bad character, etc.)
 tune_error:
-	lowsyslog("tune error\n");
+	//DELDEL lowsyslog("tune error\n");
 	_repeat = false;		// don't loop on error
 
 	// stop (and potentially restart) the tune
